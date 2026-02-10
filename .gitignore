@@ -1,0 +1,5 @@
+outputs
+.idea
+**debug.log
+app_debug.log
+horoscope_debug.log
