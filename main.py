@@ -50,7 +50,7 @@ def read_file(file_path):
 
 
 SYSTEM_PROMPT = read_file("prompts/system_prompt.txt")
-BIRTH_DATA = read_file("prompts/birth_data.txt")
+BIRTH_DATA = read_file("prompts/birth_data.json")
 
 sections = [
     "පෞරුෂය",
@@ -60,7 +60,7 @@ sections = [
     "දේපළ, භූමිය, නිවාස සහ වාහන භාග්‍යය",
     "ශාරීරික සෞඛ්‍යය, මාරක අපල, හදිසි අනතුරු",
     "දරු පල",
-    "මෙතෙක් දැක්වූ කරුණු අනුව ජීවන ගමනේ සමස්ත සාරාංශය"
+    "මෙතෙක් දැක්වූ කරුණු අනුව ජීවන ගමනේ සමස්ත සාරාංශය",
     ]
 
 # --- 3. HELPER FUNCTIONS ---
