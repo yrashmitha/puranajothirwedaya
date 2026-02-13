@@ -84,7 +84,7 @@ class AstroSystem:
         rem_years = d_total_y * remaining_ratio
 
         # වර්තමාන කාලය (2026-02-12)
-        today_dt = datetime(2026, 2, 12)
+        today_dt = datetime.now()
 
         # මහ දශා සොයාගැනීමේ Logic
         current_marker = dt_obj + timedelta(days=rem_years * 365.25)
