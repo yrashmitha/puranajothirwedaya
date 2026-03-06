@@ -30,7 +30,7 @@ class AstroSystem:
                 "format": "json",
                 "COMMAND": "'301'", "OBJ_DATA": "NO", "MAKE_EPHEM": "YES",
                 "EPHEM_TYPE": "OBSERVER", "CENTER": "'500@399'",
-                "QUANTITIES": "'1'", "START_TIME": f"'{start_str}'",
+                "QUANTITIES": "'31'", "START_TIME": f"'{start_str}'",
                 "STOP_TIME": f"'{end_str}'", "STEP_SIZE": "'1m'", "ANG_FORMAT": "DEG"
             }
 

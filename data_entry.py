@@ -90,6 +90,8 @@ all_planets = ["රවි", "චන්ද්‍ර", "කුජ", "බුද", "
 with st.sidebar:
     st.header("📋 විස්තර")
     gender = st.radio("ලිංගභේදය", ["පිරිමි", "ගැහැනු"])
+    # නව Radio Button එක - Default 'Normal' select වී ඇත
+    package_type = st.radio("පැකේජය තෝරන්න", ["Normal", "VIP (Rs. 1500)"], index=0)
     phone = st.text_input("දුරකතන අංකය")
     dob_date = st.date_input("උපන් දිනය", min_value=datetime(1900, 1, 1))
     hour = st.slider("පැය", 0, 23, 12)
@@ -163,6 +165,7 @@ if st.button("JSON එකට ඇතුළත් කරන්න 🚀", use_conta
     # 1. දත්ත Save කිරීමේ කොටස (මේක වෙනස් කරන්න එපා)
     issues_val = st.session_state.get("special_issues_input", "")
     new_record = {
+        "package_type": package_type,
         "කේන්ද්‍ර_සටහන": {
             "ලිංගහේදය": gender,
             "උපන්_දිනය": dob_date.strftime("%Y/%m/%d"),
