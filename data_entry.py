@@ -293,6 +293,10 @@ st.divider()
 st.subheader("📄 වාර්තා උත්පාදනය (Report Generation)")
 
 if st.button("සම්පූර්ණ ජ්‍යොතිෂ වාර්තාව සාදන්න 🚀", use_container_width=True):
+    # Pre-create one download slot per record — filled as each finishes
+    _pending = load_existing_data()
+    dl_slots = [st.empty() for _ in _pending]
+
     with st.spinner("කෘතිම බුද්ධිය (AI) හරහා වාර්තාව සකස් කරමින් පවතිී... කරුණාකර රැඳී සිටින්න."):
         progress_bar = st.progress(0.0)
         status_text = st.empty()
@@ -301,19 +305,21 @@ if st.button("සම්පූර්ණ ජ්‍යොතිෂ වාර්ත�
             progress_bar.progress(min(fraction, 1.0))
             status_text.caption(f"⏳ {message}")
 
+        def on_file_saved(rec_idx, docx_path):
+            if rec_idx < len(dl_slots):
+                with open(docx_path, "rb") as f:
+                    dl_slots[rec_idx].download_button(
+                        label=f"📥 #{rec_idx+1}: {os.path.basename(docx_path)}",
+                        data=f.read(),
+                        file_name=os.path.basename(docx_path),
+                        mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                        key=f"dl_record_{rec_idx}"
+                    )
+
         try:
-            output_files = generate_report(progress_callback=on_progress)
+            generate_report(progress_callback=on_progress, file_saved_callback=on_file_saved)
             progress_bar.progress(1.0)
             status_text.empty()
-            st.success("වාර්තාව සාර්ථකව සකස් කළා! ✅")
-            for docx_path in (output_files or []):
-                if os.path.exists(docx_path):
-                    with open(docx_path, "rb") as f:
-                        st.download_button(
-                            label=f"📥 Download: {os.path.basename(docx_path)}",
-                            data=f,
-                            file_name=os.path.basename(docx_path),
-                            mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                        )
+            st.success("සියලු වාර්තා සාර්ථකව සකස් කළා! ✅")
         except Exception as e:
             st.error(f"වාර්තාව සෑදීමේදී දෝෂයක් සිදු විය: {e}")

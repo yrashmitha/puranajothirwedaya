@@ -180,7 +180,7 @@ def log_prompt(folder, text):
 
 
 # --- 5. MAIN EXECUTION ---
-def generate_report(progress_callback=None):
+def generate_report(progress_callback=None, file_saved_callback=None):
     logger.info("Starting Horoscope Generation Process...")
 
     api_key = os.environ.get("GEMINI_API_KEY", API_KEY)
@@ -603,6 +603,8 @@ def generate_report(progress_callback=None):
             doc.save(output_file)
             output_files.append(output_file)
             logger.info(f"SUCCESS: Report saved as {output_file}")
+            if file_saved_callback:
+                file_saved_callback(rec_idx, output_file)
             if progress_callback:
                 progress_callback((rec_idx + 1) / total_records, f"Saved: {phone} | {dob} ✓")
             time.sleep(2)
