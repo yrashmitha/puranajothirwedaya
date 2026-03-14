@@ -82,6 +82,11 @@ def save_data(new_record):
     st.success("දත්ත සාර්ථකව ගබඩා කළා! ✅")
 
 
+def save_all_records(records):
+    with open(JSON_FILE, "w", encoding="utf-8") as f:
+        json.dump(records, f, ensure_ascii=False, indent=2)
+
+
 # --- Session State කළමනාකරණය ---
 # මුලින්ම සෑම භාවයකටම අදාළ Key එකක් Session State හි සාදා ගනිමු
 if 'init_done' not in st.session_state:
@@ -117,6 +122,97 @@ with st.sidebar:
 
         st.success("සියලු දත්ත මකා දැමුවා!")
         st.rerun()
+
+    # --- JSON Records Viewer / Editor ---
+    st.divider()
+    st.subheader("📋 Added Records")
+    records = load_existing_data()
+    if not records:
+        st.info("No records yet.")
+    else:
+        st.write(f"{len(records)} record(s)")
+        for idx, record in enumerate(records):
+            try:
+                phone = record["කේන්ද්‍ර_සටහන"]["දුරකතන_අංකය"]
+                dob   = record["කේන්ද්‍ර_සටහන"]["උපන්_දිනය"]
+            except (KeyError, TypeError):
+                phone, dob = "?", "?"
+            edit_key = f"editing_{idx}"
+            if edit_key not in st.session_state:
+                st.session_state[edit_key] = False
+
+            with st.expander(f"#{idx+1} | {phone} | {dob}"):
+                if st.session_state[edit_key]:
+                    edited = st.text_area(
+                        "Edit JSON",
+                        value=json.dumps(record, ensure_ascii=False, indent=2),
+                        height=300,
+                        key=f"edit_area_{idx}"
+                    )
+                    c1, c2 = st.columns(2)
+                    if c1.button("💾 Save", key=f"save_{idx}"):
+                        try:
+                            updated = json.loads(edited)
+                            records[idx] = updated
+                            save_all_records(records)
+                            st.session_state[edit_key] = False
+                            st.rerun()
+                        except json.JSONDecodeError as e:
+                            st.error(f"Invalid JSON: {e}")
+                    if c2.button("❌ Cancel", key=f"cancel_{idx}"):
+                        st.session_state[edit_key] = False
+                        st.rerun()
+                else:
+                    st.json(record)
+                    c1, c2 = st.columns(2)
+                    if c1.button("✏️ Edit", key=f"edit_{idx}"):
+                        st.session_state[edit_key] = True
+                        st.rerun()
+                    if c2.button("🗑️ Delete", key=f"del_{idx}"):
+                        records.pop(idx)
+                        save_all_records(records)
+                        st.rerun()
+
+    # --- Generated Reports File Browser ---
+    st.divider()
+    st.subheader("📄 Generated Reports")
+    if st.button("🔄 Refresh", key="refresh_reports"):
+        st.rerun()
+    outputs_dir = "outputs"
+    if not os.path.exists(outputs_dir):
+        st.info("No reports generated yet.")
+    else:
+        folders = sorted([
+            f for f in os.listdir(outputs_dir)
+            if os.path.isdir(os.path.join(outputs_dir, f))
+        ])
+        if not folders:
+            st.info("No reports generated yet.")
+        else:
+            for folder_name in folders:
+                folder_path = os.path.join(outputs_dir, folder_name)
+                with st.expander(f"📁 {folder_name}"):
+                    # docx first, then txt files
+                    for fname in os.listdir(folder_path):
+                        fpath = os.path.join(folder_path, fname)
+                        if not os.path.isfile(fpath):
+                            continue
+                        if fname.endswith(".docx"):
+                            mime = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                        elif fname.endswith(".txt"):
+                            mime = "text/plain"
+                        else:
+                            continue
+                        col1, col2 = st.columns([3, 1])
+                        col1.write(fname)
+                        with open(fpath, "rb") as f:
+                            col2.download_button(
+                                "⬇",
+                                data=f,
+                                file_name=fname,
+                                mime=mime,
+                                key=fpath
+                            )
 
 # --- MAIN PAGE ---
 rashi_list = ["මේෂ", "වෘෂභ", "මිථුන", "කටක", "සිංහ", "කන්‍යා", "තුලා", "වෘශ්චික", "ධනු", "මකර", "කුම්භ", "මීන"]
