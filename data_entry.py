@@ -7,6 +7,14 @@ import os
 from datetime import datetime
 import io  # මෙය මුලට එකතු කරන්න
 
+# --- Secrets Bridge: Streamlit Cloud secrets → env var ---
+if "GEMINI_API_KEY" in st.secrets:
+    os.environ.setdefault("GEMINI_API_KEY", st.secrets["GEMINI_API_KEY"])
+
+# --- Ensure required directories exist ---
+os.makedirs("outputs", exist_ok=True)
+os.makedirs("saved_chats", exist_ok=True)
+
 from main2 import generate_report
 if "needs_reset" not in st.session_state:
     st.session_state.needs_reset = False
@@ -193,9 +201,18 @@ if st.button("සම්පූර්ණ ජ්‍යොතිෂ වාර්ත�
         try:
             # ඔයාගේ generate_report() function එක මෙතනදී call වෙනවා
             # වැදගත්: එක් record එකකට වඩා තියෙනවා නම් ඒ හැම එකකටම මේක ක්‍රියාත්මක වේවි
-            report_data = generate_report()
+            output_files = generate_report()
 
             st.success("වාර්තාව සාර්ථකව සකස් කළා! ✅")
+            for docx_path in (output_files or []):
+                if os.path.exists(docx_path):
+                    with open(docx_path, "rb") as f:
+                        st.download_button(
+                            label=f"📥 Download: {os.path.basename(docx_path)}",
+                            data=f,
+                            file_name=os.path.basename(docx_path),
+                            mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                        )
 
 
         except Exception as e:

@@ -1,5 +1,6 @@
 import json
 import logging
+import os
 import re
 import sys
 
@@ -11,7 +12,7 @@ logger = logging.getLogger("AstroApp")
 
 # --- 2. CONFIGURATION & PROMPTS ---
 FONT_NAME = 'Abhaya Libre'
-API_KEY = "AIzaSyCTwLEBq6-a90LVsXfUvbxagQkGeKbzNgU"
+API_KEY = os.environ.get("GEMINI_API_KEY", "")
 
 
 def load_birth_records():
@@ -139,8 +140,6 @@ def apply_style(run, size, bold=False):
     run.font.size = Pt(size)
     run.font.bold = bold
 
-
-import os
 from datetime import datetime
 
 
@@ -184,9 +183,11 @@ def log_prompt(folder, text):
 def generate_report():
     logger.info("Starting Horoscope Generation Process...")
 
-    client = genai.Client(api_key=API_KEY)
+    api_key = os.environ.get("GEMINI_API_KEY", API_KEY)
+    client = genai.Client(api_key=api_key)
     records = load_birth_records()
     logger.info(f"Total records to process: {len(records)}")
+    output_files = []
 
     for record in records:
         try:
@@ -242,16 +243,16 @@ def generate_report():
                 logger.info("NASA Dasha & Transit data successfully injected.")
 
             sections = [
-                "පෞරුෂය",
-                "අධ්‍යාපනය",
-                "වෘත්තීය ජීවිතය සහ ආර්ථික ශක්තිය",
+                # "පෞරුෂය",
+                # "අධ්‍යාපනය",
+                # "වෘත්තීය ජීවිතය සහ ආර්ථික ශක්තිය",
                 "ප්‍රේමය සහ විවාහ ජීවිතය",
-                "දේපළ, භූමිය, නිවාස සහ වාහන භාග්‍යය",
-                "ශාරීරික සෞඛ්‍යය, මාරක අපල, හදිසි අනතුරු",
-                "දරු පල",
-                "මෙතෙක් දැක්වූ කරුණු අනුව ජීවන ගමනේ සමස්ත සාරාංශය",
-                "වර්තමාන දශාව අනුව පලාපල",
-                "ජීවිතයේ අභියෝග ජයගැනීම සඳහා වූ පොදු ශාස්ත්‍රීය සහ බෞද්ධ පිළියම්"
+                # "දේපළ, භූමිය, නිවාස සහ වාහන භාග්‍යය",
+                # "ශාරීරික සෞඛ්‍යය, මාරක අපල, හදිසි අනතුරු",
+                # "දරු පල",
+                # "මෙතෙක් දැක්වූ කරුණු අනුව ජීවන ගමනේ සමස්ත සාරාංශය",
+                # "වර්තමාන දශාව අනුව පලාපල",
+                # "ජීවිතයේ අභියෝග ජයගැනීම සඳහා වූ පොදු ශාස්ත්‍රීය සහ බෞද්ධ පිළියම්"
             ]
 
             package_type = record.get("package_type", "Normal")
@@ -593,6 +594,7 @@ def generate_report():
             output_file = os.path.join(record_folder, f"{filename}.docx")
 
             doc.save(output_file)
+            output_files.append(output_file)
             logger.info(f"SUCCESS: Report saved as {output_file}")
             time.sleep(2)
 
@@ -600,6 +602,8 @@ def generate_report():
             phone = record.get("කේන්ද්‍ර_සටහන", {}).get("දුරකතන_අංකය", "unknown")
             logger.error(f"Record [{phone}] FAILED: {str(e)}", exc_info=True)
             continue
+
+    return output_files
 
 
 if __name__ == "__main__":

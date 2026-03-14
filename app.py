@@ -13,7 +13,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-API_KEY = "AIzaSyCTwLEBq6-a90LVsXfUvbxagQkGeKbzNgU"
+API_KEY = os.environ.get("GEMINI_API_KEY", "")
 CHATS_DIR = "saved_chats"
 if not os.path.exists(CHATS_DIR): os.makedirs(CHATS_DIR)
 
