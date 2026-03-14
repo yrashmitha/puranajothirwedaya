@@ -133,15 +133,15 @@ with st.sidebar:
         st.write(f"{len(records)} record(s)")
         for idx, record in enumerate(records):
             try:
-                phone = record["කේන්ද්‍ර_සටහන"]["දුරකතන_අංකය"]
-                dob   = record["කේන්ද්‍ර_සටහන"]["උපන්_දිනය"]
+                rec_phone = record["කේන්ද්‍ර_සටහන"]["දුරකතන_අංකය"]
+                rec_dob   = record["කේන්ද්‍ර_සටහන"]["උපන්_දිනය"]
             except (KeyError, TypeError):
-                phone, dob = "?", "?"
+                rec_phone, rec_dob = "?", "?"
             edit_key = f"editing_{idx}"
             if edit_key not in st.session_state:
                 st.session_state[edit_key] = False
 
-            with st.expander(f"#{idx+1} | {phone} | {dob}"):
+            with st.expander(f"#{idx+1} | {rec_phone} | {rec_dob}"):
                 if st.session_state[edit_key]:
                     edited = st.text_area(
                         "Edit JSON",
