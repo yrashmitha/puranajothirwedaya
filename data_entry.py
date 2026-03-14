@@ -294,11 +294,17 @@ st.subheader("📄 වාර්තා උත්පාදනය (Report Generatio
 
 if st.button("සම්පූර්ණ ජ්‍යොතිෂ වාර්තාව සාදන්න 🚀", use_container_width=True):
     with st.spinner("කෘතිම බුද්ධිය (AI) හරහා වාර්තාව සකස් කරමින් පවතිී... කරුණාකර රැඳී සිටින්න."):
-        try:
-            # ඔයාගේ generate_report() function එක මෙතනදී call වෙනවා
-            # වැදගත්: එක් record එකකට වඩා තියෙනවා නම් ඒ හැම එකකටම මේක ක්‍රියාත්මක වේවි
-            output_files = generate_report()
+        progress_bar = st.progress(0.0)
+        status_text = st.empty()
 
+        def on_progress(fraction, message):
+            progress_bar.progress(min(fraction, 1.0))
+            status_text.caption(f"⏳ {message}")
+
+        try:
+            output_files = generate_report(progress_callback=on_progress)
+            progress_bar.progress(1.0)
+            status_text.empty()
             st.success("වාර්තාව සාර්ථකව සකස් කළා! ✅")
             for docx_path in (output_files or []):
                 if os.path.exists(docx_path):
@@ -309,7 +315,5 @@ if st.button("සම්පූර්ණ ජ්‍යොතිෂ වාර්ත�
                             file_name=os.path.basename(docx_path),
                             mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                         )
-
-
         except Exception as e:
             st.error(f"වාර්තාව සෑදීමේදී දෝෂයක් සිදු විය: {e}")

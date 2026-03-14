@@ -180,16 +180,17 @@ def log_prompt(folder, text):
 
 
 # --- 5. MAIN EXECUTION ---
-def generate_report():
+def generate_report(progress_callback=None):
     logger.info("Starting Horoscope Generation Process...")
 
     api_key = os.environ.get("GEMINI_API_KEY", API_KEY)
     client = genai.Client(api_key=api_key)
     records = load_birth_records()
-    logger.info(f"Total records to process: {len(records)}")
+    total_records = len(records)
+    logger.info(f"Total records to process: {total_records}")
     output_files = []
 
-    for record in records:
+    for rec_idx, record in enumerate(records):
         try:
 
             global BIRTH_DATA
@@ -197,6 +198,9 @@ def generate_report():
 
             phone = record["කේන්ද්‍ර_සටහන"]["දුරකතන_අංකය"]
             dob = record["කේන්ද්‍ර_සටහන"]["උපන්_දිනය"]
+
+            if progress_callback:
+                progress_callback(rec_idx / total_records, f"Record {rec_idx+1}/{total_records}: {phone} | {dob}")
 
             filename = sanitize_filename(phone) + "_" + sanitize_filename(dob)
             # ⭐ Create folder per record
@@ -291,6 +295,9 @@ def generate_report():
                     logger.info(f"Page Break added before section: {sec}")
 
                 logger.info(f"--- Processing Section: {sec} ---")
+                if progress_callback:
+                    frac = (rec_idx + index / len(current_sections)) / total_records
+                    progress_callback(frac, f"Record {rec_idx+1}/{total_records} — Section {index+1}/{len(current_sections)}: {sec}")
 
                 # සාරාංශය (Summary/Sranshaya) නම් පමණක් වචන සීමා කිරීමේ නියෝගය දැඩි කරන්න
                 if "සාරාංශය" in sec or "Summary" in sec:
@@ -596,6 +603,8 @@ def generate_report():
             doc.save(output_file)
             output_files.append(output_file)
             logger.info(f"SUCCESS: Report saved as {output_file}")
+            if progress_callback:
+                progress_callback((rec_idx + 1) / total_records, f"Saved: {phone} | {dob} ✓")
             time.sleep(2)
 
         except Exception as e:
