@@ -63,6 +63,9 @@ if 'init_done' not in st.session_state:
         if f"n_ms_{i}" not in st.session_state: st.session_state[f"n_ms_{i}"] = []
     st.session_state.init_done = True
 
+if "generated_files" not in st.session_state:
+    st.session_state.generated_files = []  # list of (label, path) tuples
+
 # --- Helper Functions ---
 def load_existing_data():
     if os.path.exists(JSON_FILE):
@@ -120,6 +123,7 @@ with st.sidebar:
             st.session_state[f"l_ms_{i}"] = []
             st.session_state[f"n_ms_{i}"] = []
 
+        st.session_state.generated_files = []
         st.success("සියලු දත්ත මකා දැමුවා!")
         st.rerun()
 
@@ -293,7 +297,7 @@ st.divider()
 st.subheader("📄 වාර්තා උත්පාදනය (Report Generation)")
 
 if st.button("සම්පූර්ණ ජ්‍යොතිෂ වාර්තාව සාදන්න 🚀", use_container_width=True):
-    # Pre-create one download slot per record — filled as each finishes
+    st.session_state.generated_files = []
     _pending = load_existing_data()
     dl_slots = [st.empty() for _ in _pending]
 
@@ -306,6 +310,7 @@ if st.button("සම්පූර්ණ ජ්‍යොතිෂ වාර්ත�
             status_text.caption(f"⏳ {message}")
 
         def on_file_saved(rec_idx, docx_path):
+            st.session_state.generated_files.append((rec_idx, docx_path))
             if rec_idx < len(dl_slots):
                 with open(docx_path, "rb") as f:
                     dl_slots[rec_idx].download_button(
@@ -327,3 +332,21 @@ if st.button("සම්පූර්ණ ජ්‍යොතිෂ වාර්ත�
             st.success("සියලු වාර්තා සාර්ථකව සකස් කළා! ✅")
         except Exception as e:
             st.error(f"වාර්තාව සෑදීමේදී දෝෂයක් සිදු විය: {e}")
+
+@st.fragment
+def _download_section():
+    if not st.session_state.generated_files:
+        return
+    st.subheader("📥 Generated Reports — Download")
+    for rec_idx, docx_path in st.session_state.generated_files:
+        if os.path.exists(docx_path):
+            with open(docx_path, "rb") as f:
+                st.download_button(
+                    label=f"📥 #{rec_idx+1}: {os.path.basename(docx_path)}",
+                    data=f.read(),
+                    file_name=os.path.basename(docx_path),
+                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                    key=f"persist_dl_{rec_idx}_{docx_path}",
+                )
+
+_download_section()
