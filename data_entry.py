@@ -63,18 +63,8 @@ if 'init_done' not in st.session_state:
         if f"n_ms_{i}" not in st.session_state: st.session_state[f"n_ms_{i}"] = []
     st.session_state.init_done = True
 
-if "generated_files" not in st.session_state:
-    st.session_state.generated_files = []  # list of (rec_idx, path) tuples
-if "gen_running" not in st.session_state:
-    st.session_state.gen_running = False
-if "gen_progress" not in st.session_state:
-    st.session_state.gen_progress = 0.0
-if "gen_message" not in st.session_state:
-    st.session_state.gen_message = ""
-if "gen_errors" not in st.session_state:
-    st.session_state.gen_errors = []
-if "gen_done" not in st.session_state:
-    st.session_state.gen_done = False
+if "gen_state" not in st.session_state:
+    st.session_state.gen_state = None  # plain dict shared with background thread
 
 # --- Helper Functions ---
 def load_existing_data():
@@ -133,12 +123,7 @@ with st.sidebar:
             st.session_state[f"l_ms_{i}"] = []
             st.session_state[f"n_ms_{i}"] = []
 
-        st.session_state.generated_files = []
-        st.session_state.gen_running = False
-        st.session_state.gen_done = False
-        st.session_state.gen_errors = []
-        st.session_state.gen_progress = 0.0
-        st.session_state.gen_message = ""
+        st.session_state.gen_state = None
         st.success("සියලු දත්ත මකා දැමුවා!")
         st.rerun()
 
@@ -313,26 +298,34 @@ import threading
 st.divider()
 st.subheader("📄 වාර්තා උත්පාදනය (Report Generation)")
 
+_currently_running = bool(
+    st.session_state.gen_state and st.session_state.gen_state.get("running")
+)
+
 if st.button("සම්පූර්ණ ජ්‍යොතිෂ වාර්තාව සාදන්න 🚀",
              use_container_width=True,
-             disabled=st.session_state.gen_running):
-    st.session_state.generated_files = []
-    st.session_state.gen_running = True
-    st.session_state.gen_progress = 0.0
-    st.session_state.gen_message = "Starting..."
-    st.session_state.gen_errors = []
-    st.session_state.gen_done = False
+             disabled=_currently_running):
+    # Plain dict — safe to mutate from background thread (no ScriptRunContext needed)
+    state = {
+        "running": True,
+        "progress": 0.0,
+        "message": "Starting...",
+        "files": [],
+        "errors": [],
+        "done": False,
+    }
+    st.session_state.gen_state = state  # store reference; thread closes over `state`
 
     def _run():
         def on_progress(frac, msg):
-            st.session_state.gen_progress = min(frac, 1.0)
-            st.session_state.gen_message = msg
+            state["progress"] = min(frac, 1.0)
+            state["message"] = msg
 
         def on_file_saved(rec_idx, docx_path):
-            st.session_state.generated_files.append((rec_idx, docx_path))
+            state["files"].append((rec_idx, docx_path))
 
         def on_error(rec_idx, phone, err):
-            st.session_state.gen_errors.append(f"#{rec_idx+1} [{phone}]: {err}")
+            state["errors"].append(f"#{rec_idx+1} [{phone}]: {err}")
 
         try:
             generate_report(
@@ -341,11 +334,11 @@ if st.button("සම්පූර්ණ ජ්‍යොතිෂ වාර්ත�
                 error_callback=on_error,
             )
         except Exception as e:
-            st.session_state.gen_errors.append(f"Fatal: {e}")
+            state["errors"].append(f"Fatal: {e}")
         finally:
-            st.session_state.gen_running = False
-            st.session_state.gen_done = True
-            st.session_state.gen_progress = 1.0
+            state["running"] = False
+            state["done"] = True
+            state["progress"] = 1.0
 
     threading.Thread(target=_run, daemon=True).start()
     st.rerun()
@@ -353,22 +346,21 @@ if st.button("සම්පූර්ණ ජ්‍යොතිෂ වාර්ත�
 
 @st.fragment(run_every=2)
 def _generation_panel():
-    running = st.session_state.gen_running
-    done = st.session_state.gen_done
-    files = st.session_state.generated_files
-    errors = st.session_state.gen_errors
+    # Reading session_state here is safe — fragment runs in main Streamlit context
+    state = st.session_state.gen_state
+    if not state:
+        return
 
-    if running:
-        st.progress(st.session_state.gen_progress)
-        st.caption(f"⏳ {st.session_state.gen_message}")
+    if state["running"]:
+        st.progress(state["progress"])
+        st.caption(f"⏳ {state['message']}")
 
-    if errors:
-        for err in errors:
-            st.error(f"❌ {err}")
+    for err in state["errors"]:
+        st.error(f"❌ {err}")
 
-    if files:
+    if state["files"]:
         st.subheader("📥 Generated Reports — Download")
-        for rec_idx, docx_path in files:
+        for rec_idx, docx_path in state["files"]:
             if os.path.exists(docx_path):
                 with open(docx_path, "rb") as f:
                     st.download_button(
@@ -379,7 +371,7 @@ def _generation_panel():
                         key=f"dl_{rec_idx}_{os.path.basename(docx_path)}",
                     )
 
-    if done and files:
+    if state["done"] and state["files"]:
         st.success("සියලු වාර්තා සාර්ථකව සකස් කළා! ✅")
 
 
