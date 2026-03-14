@@ -64,7 +64,17 @@ if 'init_done' not in st.session_state:
     st.session_state.init_done = True
 
 if "generated_files" not in st.session_state:
-    st.session_state.generated_files = []  # list of (label, path) tuples
+    st.session_state.generated_files = []  # list of (rec_idx, path) tuples
+if "gen_running" not in st.session_state:
+    st.session_state.gen_running = False
+if "gen_progress" not in st.session_state:
+    st.session_state.gen_progress = 0.0
+if "gen_message" not in st.session_state:
+    st.session_state.gen_message = ""
+if "gen_errors" not in st.session_state:
+    st.session_state.gen_errors = []
+if "gen_done" not in st.session_state:
+    st.session_state.gen_done = False
 
 # --- Helper Functions ---
 def load_existing_data():
@@ -124,6 +134,11 @@ with st.sidebar:
             st.session_state[f"n_ms_{i}"] = []
 
         st.session_state.generated_files = []
+        st.session_state.gen_running = False
+        st.session_state.gen_done = False
+        st.session_state.gen_errors = []
+        st.session_state.gen_progress = 0.0
+        st.session_state.gen_message = ""
         st.success("සියලු දත්ත මකා දැමුවා!")
         st.rerun()
 
@@ -293,60 +308,79 @@ if st.button("JSON එකට ඇතුළත් කරන්න 🚀", use_conta
     # 3. Page එක Refresh කරන්න
     st.rerun()
 
+import threading
+
 st.divider()
 st.subheader("📄 වාර්තා උත්පාදනය (Report Generation)")
 
-if st.button("සම්පූර්ණ ජ්‍යොතිෂ වාර්තාව සාදන්න 🚀", use_container_width=True):
+if st.button("සම්පූර්ණ ජ්‍යොතිෂ වාර්තාව සාදන්න 🚀",
+             use_container_width=True,
+             disabled=st.session_state.gen_running):
     st.session_state.generated_files = []
-    _pending = load_existing_data()
-    dl_slots = [st.empty() for _ in _pending]
+    st.session_state.gen_running = True
+    st.session_state.gen_progress = 0.0
+    st.session_state.gen_message = "Starting..."
+    st.session_state.gen_errors = []
+    st.session_state.gen_done = False
 
-    with st.spinner("කෘතිම බුද්ධිය (AI) හරහා වාර්තාව සකස් කරමින් පවතිී... කරුණාකර රැඳී සිටින්න."):
-        progress_bar = st.progress(0.0)
-        status_text = st.empty()
-
-        def on_progress(fraction, message):
-            progress_bar.progress(min(fraction, 1.0))
-            status_text.caption(f"⏳ {message}")
+    def _run():
+        def on_progress(frac, msg):
+            st.session_state.gen_progress = min(frac, 1.0)
+            st.session_state.gen_message = msg
 
         def on_file_saved(rec_idx, docx_path):
             st.session_state.generated_files.append((rec_idx, docx_path))
-            if rec_idx < len(dl_slots):
+
+        def on_error(rec_idx, phone, err):
+            st.session_state.gen_errors.append(f"#{rec_idx+1} [{phone}]: {err}")
+
+        try:
+            generate_report(
+                progress_callback=on_progress,
+                file_saved_callback=on_file_saved,
+                error_callback=on_error,
+            )
+        except Exception as e:
+            st.session_state.gen_errors.append(f"Fatal: {e}")
+        finally:
+            st.session_state.gen_running = False
+            st.session_state.gen_done = True
+            st.session_state.gen_progress = 1.0
+
+    threading.Thread(target=_run, daemon=True).start()
+    st.rerun()
+
+
+@st.fragment(run_every=2)
+def _generation_panel():
+    running = st.session_state.gen_running
+    done = st.session_state.gen_done
+    files = st.session_state.generated_files
+    errors = st.session_state.gen_errors
+
+    if running:
+        st.progress(st.session_state.gen_progress)
+        st.caption(f"⏳ {st.session_state.gen_message}")
+
+    if errors:
+        for err in errors:
+            st.error(f"❌ {err}")
+
+    if files:
+        st.subheader("📥 Generated Reports — Download")
+        for rec_idx, docx_path in files:
+            if os.path.exists(docx_path):
                 with open(docx_path, "rb") as f:
-                    dl_slots[rec_idx].download_button(
+                    st.download_button(
                         label=f"📥 #{rec_idx+1}: {os.path.basename(docx_path)}",
                         data=f.read(),
                         file_name=os.path.basename(docx_path),
                         mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                        key=f"dl_record_{rec_idx}"
+                        key=f"dl_{rec_idx}_{os.path.basename(docx_path)}",
                     )
 
-        def on_record_error(rec_idx, phone, error_msg):
-            if rec_idx < len(dl_slots):
-                dl_slots[rec_idx].error(f"❌ #{rec_idx+1} [{phone}] failed: {error_msg}")
+    if done and files:
+        st.success("සියලු වාර්තා සාර්ථකව සකස් කළා! ✅")
 
-        try:
-            generate_report(progress_callback=on_progress, file_saved_callback=on_file_saved, error_callback=on_record_error)
-            progress_bar.progress(1.0)
-            status_text.empty()
-            st.success("සියලු වාර්තා සාර්ථකව සකස් කළා! ✅")
-        except Exception as e:
-            st.error(f"වාර්තාව සෑදීමේදී දෝෂයක් සිදු විය: {e}")
 
-@st.fragment
-def _download_section():
-    if not st.session_state.generated_files:
-        return
-    st.subheader("📥 Generated Reports — Download")
-    for rec_idx, docx_path in st.session_state.generated_files:
-        if os.path.exists(docx_path):
-            with open(docx_path, "rb") as f:
-                st.download_button(
-                    label=f"📥 #{rec_idx+1}: {os.path.basename(docx_path)}",
-                    data=f.read(),
-                    file_name=os.path.basename(docx_path),
-                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                    key=f"persist_dl_{rec_idx}_{docx_path}",
-                )
-
-_download_section()
+_generation_panel()
