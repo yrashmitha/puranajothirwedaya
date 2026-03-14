@@ -316,8 +316,12 @@ if st.button("සම්පූර්ණ ජ්‍යොතිෂ වාර්ත�
                         key=f"dl_record_{rec_idx}"
                     )
 
+        def on_record_error(rec_idx, phone, error_msg):
+            if rec_idx < len(dl_slots):
+                dl_slots[rec_idx].error(f"❌ #{rec_idx+1} [{phone}] failed: {error_msg}")
+
         try:
-            generate_report(progress_callback=on_progress, file_saved_callback=on_file_saved)
+            generate_report(progress_callback=on_progress, file_saved_callback=on_file_saved, error_callback=on_record_error)
             progress_bar.progress(1.0)
             status_text.empty()
             st.success("සියලු වාර්තා සාර්ථකව සකස් කළා! ✅")

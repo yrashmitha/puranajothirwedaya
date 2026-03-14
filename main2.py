@@ -180,7 +180,7 @@ def log_prompt(folder, text):
 
 
 # --- 5. MAIN EXECUTION ---
-def generate_report(progress_callback=None, file_saved_callback=None):
+def generate_report(progress_callback=None, file_saved_callback=None, error_callback=None):
     logger.info("Starting Horoscope Generation Process...")
 
     api_key = os.environ.get("GEMINI_API_KEY", API_KEY)
@@ -191,6 +191,11 @@ def generate_report(progress_callback=None, file_saved_callback=None):
     output_files = []
 
     for rec_idx, record in enumerate(records):
+        _rec_phone = record.get("කේන්ද්‍ර_සටහන", {}).get("දුරකතන_අංකය", "?")
+        _rec_dob = record.get("කේන්ද්‍ර_සටහන", {}).get("උපන්_දිනය", "?")
+        logger.info(f"=== Starting record {rec_idx+1}/{total_records}: {_rec_phone} | {_rec_dob} ===")
+        if progress_callback:
+            progress_callback(rec_idx / total_records, f"⏳ Record {rec_idx+1}/{total_records}: {_rec_phone} | {_rec_dob} — starting...")
         try:
 
             global BIRTH_DATA
@@ -198,9 +203,6 @@ def generate_report(progress_callback=None, file_saved_callback=None):
 
             phone = record["කේන්ද්‍ර_සටහන"]["දුරකතන_අංකය"]
             dob = record["කේන්ද්‍ර_සටහන"]["උපන්_දිනය"]
-
-            if progress_callback:
-                progress_callback(rec_idx / total_records, f"Record {rec_idx+1}/{total_records}: {phone} | {dob}")
 
             filename = sanitize_filename(phone) + "_" + sanitize_filename(dob)
             # ⭐ Create folder per record
@@ -610,8 +612,12 @@ def generate_report(progress_callback=None, file_saved_callback=None):
             time.sleep(2)
 
         except Exception as e:
-            phone = record.get("කේන්ද්‍ර_සටහන", {}).get("දුරකතන_අංකය", "unknown")
-            logger.error(f"Record [{phone}] FAILED: {str(e)}", exc_info=True)
+            _fail_phone = record.get("කේන්ද්‍ර_සටහන", {}).get("දුරකතන_අංකය", "unknown")
+            logger.error(f"Record {rec_idx+1} [{_fail_phone}] FAILED: {str(e)}", exc_info=True)
+            if progress_callback:
+                progress_callback((rec_idx + 1) / total_records, f"❌ Record {rec_idx+1} [{_fail_phone}] failed: {str(e)[:80]}")
+            if error_callback:
+                error_callback(rec_idx, _fail_phone, str(e))
             continue
 
     return output_files
