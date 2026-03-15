@@ -209,6 +209,7 @@ def generate_report(progress_callback=None, file_saved_callback=None, error_call
             record_folder = create_record_folder(filename)
             # ⭐ Save birth snapshot
             doc = Document()
+            doc.core_properties.author = "purana jothirwedaya"
 
             # --- Footer සහ පිටු අංකය සැකසීම ---
             section = doc.sections[0]
